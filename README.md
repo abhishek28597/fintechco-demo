@@ -1,10 +1,17 @@
-# FinTechCo Credit Risk Monitor
+# FinTechCo Analytics Demo
 
-A demo financial analytics dashboard for **FinTechCo**, a hypothetical fintech that offers digital payments and traditional banking. It forecasts next quarter's U.S. credit card delinquency rate from macroeconomic indicators and compares three baseline machine-learning models.
+Two demo analytics dashboards for **FinTechCo**, a hypothetical fintech that offers digital payments and traditional banking:
+
+1. **Credit Risk Monitor** (landing page, regression): forecasts next quarter's U.S. credit card delinquency rate.
+2. **Recession Risk Signal** (classification): estimates how closely current conditions resemble months that NBER later dated as recessions.
+
+Switch between them with the tabs in the top bar. You can also link straight to the second dashboard with `index.html#recession`.
 
 > **Demo product.** FinTechCo is not a real company. The data is a static snapshot from [FRED](https://fred.stlouisfed.org/) taken on 2026-09-26, and nothing updates live. This isn't investment or credit advice.
 
 Open `index.html` in any browser. It's a single self-contained page: the data and model results are embedded, and it makes no API calls when it loads.
+
+# Dashboard 1: Credit Risk Monitor
 
 ## What the dashboard shows
 
@@ -67,15 +74,69 @@ Monthly series are averaged to quarters, and CPI is converted to year-over-year 
 
 These are baselines for a demo, not production credit-risk models.
 
+# Dashboard 2: Recession Risk Signal
+
+> **Early-warning signal, not an official recession call.** The target, `USREC`, is NBER's recession indicator. The dates are set by committee judgment across many indicators and announced 6 to 18 months after a recession starts. A high reading means current conditions resemble past recession months. It does not mean a recession has started or will start.
+
+## What the dashboard shows
+
+- **Latest leading indicators:** the yield spread, unemployment, consumer sentiment, industrial production, jobless claims, and the latest official NBER status.
+- **Current risk by model:** each model's probability for the latest month, with a Low (under 20%), Elevated (20–50%) or High (50% and up) band. Each model also shows accuracy, precision, recall, F1, ROC AUC and a confusion matrix.
+- **Probability timeline:** each model's recession probability since 1978, with NBER recessions shaded.
+- **Today vs. history:** each input next to its typical expansion and recession values, plus each model's feature influence.
+
+## Data
+
+| Series | Description | Monthly treatment |
+|---|---|---|
+| `USREC` | NBER recession indicator, 1 = recession month (**target**) | as published |
+| `T10Y2Y` | 10-year minus 2-year Treasury spread | daily, averaged to months |
+| `UNRATE` | Unemployment rate | as published |
+| `UMCSENT` | University of Michigan consumer sentiment | as published |
+| `INDPRO` | Industrial production index | as published |
+| `ICSA` | Initial unemployment claims | weekly, averaged to months |
+
+The window starts in January 1978, when consumer sentiment becomes monthly. FRED has no October 2025 unemployment value because of the federal shutdown, so that one month is filled by linear interpolation.
+
+## Features
+
+| Feature | Rationale |
+|---|---|
+| 10Y–2Y spread | Shape of the yield curve |
+| Lowest spread over the past 12 months | Inversions tend to lead recessions |
+| Unemployment rise vs. 12-month low (3-month average) | Similar to the Sahm rule |
+| Consumer sentiment | Household confidence |
+| Industrial production, YoY % | Real activity |
+| Initial claims, YoY % | Early labor-market stress |
+
+## Models and evaluation
+
+- Logistic regression (balanced class weights, standardized features)
+- Random forest (400 trees, depth 4, balanced class weights)
+- k-nearest neighbors (k = 15, distance-weighted, standardized features)
+
+The split is chronological. The models train on 1978–2004 (324 months, 38 in recession) and are tested on Jan 2005 – Aug 2026 (260 months, 20 in recession), which holds out the 2008–09 and 2020 recessions. A month is classified as a recession month when its probability is 50% or higher. The current readings come from each model refit on all labelled history.
+
+| Model | Accuracy | Precision | Recall | F1 | Aug 2026 risk |
+|---|---|---|---|---|---|
+| Logistic regression | 86% | 35% | 95% | 0.51 | 39% (Elevated) |
+| Random forest | 93% | 53% | 85% | 0.65 | 1% (Low) |
+| k-nearest neighbors | 93% | 53% | 85% | 0.65 | 0% (Low) |
+| *Always "no recession"* | *92%* | *n/a* | *0%* | *0* | n/a |
+
+**How to read these results:** accuracy alone is misleading, because always predicting "no recession" scores 92% and catches nothing. Recall and precision are more informative. Most false alarms fall in 2022–25, when the yield curve was deeply inverted and sentiment hit record lows, but no recession followed. The logistic model's current elevated reading comes mostly from consumer sentiment, which at 51.7 is below its typical recession-month level.
+
 ## Project structure
 
 ```
 .
-├── index.html          # Built dashboard (self-contained, open in a browser)
-├── template.html       # Dashboard source; build.py injects the data here
-├── train.py            # One-time training: FRED CSVs -> model_output.json
-├── build.py            # Inlines model_output.json into template.html -> index.html
-├── model_output.json   # Baked metrics, predictions and forecasts
+├── index.html              # Built page with both dashboards (self-contained)
+├── template.html           # Page source; build.py injects both data files here
+├── train.py                # Credit Risk Monitor training -> model_output.json
+├── train_recession.py      # Recession Risk Signal training -> recession_output.json
+├── build.py                # Inlines both JSON files into template.html -> index.html
+├── model_output.json       # Baked delinquency results
+├── recession_output.json   # Baked recession results
 ├── data/               # FRED CSV snapshots
 └── requirements.txt
 ```
@@ -85,8 +146,9 @@ These are baselines for a demo, not production credit-risk models.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python train.py    # retrain the models, writes model_output.json
-.venv/bin/python build.py    # regenerate index.html
+.venv/bin/python train.py             # delinquency models -> model_output.json
+.venv/bin/python train_recession.py   # recession models -> recession_output.json
+.venv/bin/python build.py             # regenerate index.html
 ```
 
-To refresh the data, replace the CSVs in `data/` with new downloads from FRED that keep the same file names and `date,<SERIES_ID>` columns. Then run both scripts again.
+To refresh the data, replace the CSVs in `data/` with new downloads from FRED that keep the same file names and `date,<SERIES_ID>` columns. Then run all three scripts again.
