@@ -26,7 +26,8 @@ def fetch(series_id):
     # FRED's header is `observation_date,<ID>` (older: `DATE,<ID>`); require the ID column.
     if len(rows) < 2 or len(rows[0]) != 2 or rows[0][1] != series_id:
         raise ValueError(f"unexpected response for {series_id}: {text[:80]!r}")
-    return [("date", series_id)] + [tuple(r) for r in rows[1:] if r]
+    # FRED leaves missing values blank; the CSVs in data/ mark them with ".".
+    return [("date", series_id)] + [(r[0], r[1] or ".") for r in rows[1:] if r]
 
 
 def main(ids):
