@@ -2,7 +2,7 @@
 
 A demo financial analytics dashboard for **FinTechCo**, a hypothetical fintech that offers digital payments and traditional banking. It forecasts next quarter's U.S. credit card delinquency rate from macroeconomic indicators and compares three baseline machine-learning models.
 
-> **Demo product.** FinTechCo is not a real company. The data is a static snapshot from [FRED](https://fred.stlouisfed.org/) taken on 2026-09-26, and nothing updates live. This isn't investment or credit advice.
+> **Demo product.** FinTechCo is not a real company. The data is a snapshot from [FRED](https://fred.stlouisfed.org/) taken on 2026-09-26. It can be refreshed on demand with `fetch_data.py` (see [Rebuilding](#rebuilding)), but nothing updates live. This isn't investment or credit advice.
 
 Open `index.html` in any browser. It's a single self-contained page: the data and model results are embedded, and it makes no API calls when it loads.
 
@@ -73,10 +73,11 @@ These are baselines for a demo, not production credit-risk models.
 .
 ├── index.html          # Built dashboard (self-contained, open in a browser)
 ├── template.html       # Dashboard source; build.py injects the data here
+├── fetch_data.py       # On-demand refresh of data/*.csv from FRED
 ├── train.py            # One-time training: FRED CSVs -> model_output.json
 ├── build.py            # Inlines model_output.json into template.html -> index.html
 ├── model_output.json   # Baked metrics, predictions and forecasts
-├── data/               # FRED CSV snapshots
+├── data/               # FRED CSVs (refreshed by fetch_data.py)
 └── requirements.txt
 ```
 
@@ -89,4 +90,12 @@ python3 -m venv .venv
 .venv/bin/python build.py    # regenerate index.html
 ```
 
-To refresh the data, replace the CSVs in `data/` with new downloads from FRED that keep the same file names and `date,<SERIES_ID>` columns. Then run both scripts again.
+To refresh the data on demand, run the fetch script first. It downloads the five series from FRED's public CSV endpoint (no API key, standard library only) and rewrites the files in `data/` in the same `date,<SERIES_ID>` format, with missing values as `.`:
+
+```bash
+.venv/bin/python fetch_data.py                 # all series
+.venv/bin/python fetch_data.py UNRATE FEDFUNDS # only some
+.venv/bin/python train.py && .venv/bin/python build.py
+```
+
+A file is only replaced after its download parses successfully, so a failed fetch leaves the existing CSV untouched.
