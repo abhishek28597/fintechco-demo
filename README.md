@@ -73,6 +73,7 @@ These are baselines for a demo, not production credit-risk models.
 .
 ├── index.html          # Built dashboard (self-contained, open in a browser)
 ├── template.html       # Dashboard source; build.py injects the data here
+├── fetch_data.py       # On-demand FRED API refresh of data/*.csv
 ├── train.py            # One-time training: FRED CSVs -> model_output.json
 ├── build.py            # Inlines model_output.json into template.html -> index.html
 ├── model_output.json   # Baked metrics, predictions and forecasts
@@ -89,4 +90,14 @@ python3 -m venv .venv
 .venv/bin/python build.py    # regenerate index.html
 ```
 
-To refresh the data, replace the CSVs in `data/` with new downloads from FRED that keep the same file names and `date,<SERIES_ID>` columns. Then run both scripts again.
+To refresh the data, fetch the latest series from the FRED API, then rerun both scripts:
+
+```bash
+export FRED_API_KEY=your_key    # free key: https://fred.stlouisfed.org/docs/api/api_key.html
+.venv/bin/python fetch_data.py                  # refresh all five series in data/
+.venv/bin/python fetch_data.py UNRATE FEDFUNDS  # or only selected series
+.venv/bin/python train.py
+.venv/bin/python build.py
+```
+
+`fetch_data.py` overwrites `data/<SERIES_ID>.csv` in the same `date,<SERIES_ID>` format (missing values as `.`). It uses only the standard library and reads the key from the environment; the key is never stored. Once data is refreshed, the snapshot date and results quoted above will no longer match the dashboard.
