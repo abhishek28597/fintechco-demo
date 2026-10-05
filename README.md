@@ -73,6 +73,7 @@ These are baselines for a demo, not production credit-risk models.
 .
 ├── index.html          # Built dashboard (self-contained, open in a browser)
 ├── template.html       # Dashboard source; build.py injects the data here
+├── fetch_data.py       # On-demand FRED refresh of data/*.csv
 ├── train.py            # One-time training: FRED CSVs -> model_output.json
 ├── build.py            # Inlines model_output.json into template.html -> index.html
 ├── model_output.json   # Baked metrics, predictions and forecasts
@@ -89,4 +90,4 @@ python3 -m venv .venv
 .venv/bin/python build.py    # regenerate index.html
 ```
 
-To refresh the data, replace the CSVs in `data/` with new downloads from FRED that keep the same file names and `date,<SERIES_ID>` columns. Then run both scripts again.
+To refresh the data from FRED, run `python3 fetch_data.py` first (optionally pass series IDs, e.g. `python3 fetch_data.py UNRATE`), then run both scripts above. It needs nothing beyond the standard library. Set `FRED_API_KEY` to use the official FRED API; without it, the public `fredgraph.csv` endpoint is used. A series that fails to download keeps its existing CSV.
